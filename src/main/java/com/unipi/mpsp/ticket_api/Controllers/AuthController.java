@@ -112,6 +112,7 @@ public class AuthController {
     public AppUser register(@RequestBody AppUser appUser) throws ValidationException, IOException {
         appUser.setProvider("LOCAL");
         appUser.setReservations(new ArrayList<>());
+        //appUser.setRoles(List.of("USER"));
         return userService.create(appUser);
     }
 

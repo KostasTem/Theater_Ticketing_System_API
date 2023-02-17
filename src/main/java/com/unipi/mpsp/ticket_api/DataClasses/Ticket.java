@@ -70,4 +70,15 @@ public class Ticket {
 
     public Ticket() {
     }
+
+    @Override
+    public String toString() {
+        return "Ticket{" +
+                "id=" + id +
+                ", seat='" + seat + '\'' +
+                ", show=" + show.getId() +
+                ", reservation=" + reservation.getId() +
+                ", checkedIn=" + checkedIn +
+                '}';
+    }
 }

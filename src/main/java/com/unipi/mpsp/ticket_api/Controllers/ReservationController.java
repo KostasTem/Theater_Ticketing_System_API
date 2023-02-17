@@ -7,6 +7,7 @@ import com.unipi.mpsp.ticket_api.DataClasses.Ticket;
 import com.unipi.mpsp.ticket_api.Services.AppUserService;
 import com.unipi.mpsp.ticket_api.Services.ReservationService;
 import com.unipi.mpsp.ticket_api.Services.ShowService;
+import com.unipi.mpsp.ticket_api.Services.TicketService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
 import org.slf4j.Logger;
@@ -34,7 +35,6 @@ public class ReservationController {
     private final ReservationService reservationService;
     private final AppUserService appUserService;
     private final ShowService showService;
-
     @GetMapping("/")
     public ResponseEntity<List<Map<String,Object>>> getReservations(Principal principal){
         List<Map<String, Object>> res = new ArrayList<>();
@@ -59,14 +59,13 @@ public class ReservationController {
         Long showID;
         String[] date;
         Month month;
-        LocalDateTime localDateTime;
         Show show = null;
         try {
             ticketSeats = (List<String>) req.get("tickets");
             showID = Long.valueOf((Integer) req.get("showID"));
             date = ((String) req.get("timestamp")).split(":");
             month = Month.of(Integer.parseInt(date[1]));
-            localDateTime = LocalDateTime.of(Integer.parseInt(date[0]), month, Integer.parseInt(date[2]), Integer.parseInt(date[3]), Integer.parseInt(date[4]), Integer.parseInt(date[5]));
+            //localDateTime = LocalDateTime.of(Integer.parseInt(date[0]), month, Integer.parseInt(date[2]), Integer.parseInt(date[3]), Integer.parseInt(date[4]), Integer.parseInt(date[5]));
             show = showService.getShow(showID);
         }catch (Exception e){
             log.error("Invalid request data format during reservation attempt at {} by {} with exception {}. Data {}", LocalDateTime.now(),principal.getName(),e.getMessage(),Arrays.toString(req.entrySet().toArray()));
@@ -86,7 +85,7 @@ public class ReservationController {
             log.error("User {} requested their reservation but wasn't found in the database",principal.getName());
             return ResponseEntity.status(HttpStatus.NOT_FOUND).header("Error-Message","User not found").body(null);
         }
-        Reservation reservation = new Reservation(null,appUser,tickets,localDateTime);
+        Reservation reservation = new Reservation(null,appUser,tickets,LocalDateTime.now());
         for(Ticket ticket:tickets){
             ticket.setReservation(reservation);
         }

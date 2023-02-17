@@ -17,7 +17,7 @@ public class Performance {
     private Integer duration;
     private String image;
     private Double ticketPrice;
-    @OneToMany(fetch = FetchType.LAZY,mappedBy = "performance",cascade = CascadeType.ALL,orphanRemoval = true)
+    @OneToMany(fetch = FetchType.EAGER,mappedBy = "performance",cascade = CascadeType.ALL,orphanRemoval = true)
     @JsonIncludeProperties(value = {"id","dateTime"})
     private List<Show> shows;
     @OneToOne(cascade = CascadeType.ALL)

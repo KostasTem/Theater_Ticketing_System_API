@@ -12,5 +12,6 @@ public interface AppUserService {
     AppUser saveUser(AppUser appUser);
     AppUser getUser(String email);
     AppUser getUserByPerformance(Performance performance);
+    AppUser getById(Long id);
     List<AppUser> getUsers();
 }

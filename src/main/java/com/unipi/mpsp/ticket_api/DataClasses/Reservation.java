@@ -17,8 +17,8 @@ public class Reservation {
     @JoinColumn(name = "app_user_id", referencedColumnName = "id")
     @JsonIgnore
     private AppUser appUser;
-    @OneToMany(fetch = FetchType.EAGER,mappedBy = "reservation",cascade = {CascadeType.PERSIST})
-    @JsonIncludeProperties(value = {"seat"})
+    @OneToMany(fetch = FetchType.EAGER,mappedBy = "reservation",cascade = {CascadeType.MERGE})
+    @JsonIncludeProperties(value = {"seat","id"})
     private List<Ticket> tickets;
     private LocalDateTime timestamp;
 

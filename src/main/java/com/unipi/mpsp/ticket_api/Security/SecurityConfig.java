@@ -64,7 +64,8 @@ public class SecurityConfig {
                                 .accessDeniedHandler(new BearerTokenAccessDeniedHandler()));
         http.authorizeHttpRequests().requestMatchers("/api/auth/**").permitAll();
         http.authorizeHttpRequests().requestMatchers("/api/show/**").permitAll();
-        http.authorizeHttpRequests().requestMatchers("/api/user/**").hasAuthority("ROLE_USER");
+        http.authorizeHttpRequests().requestMatchers("/api/user/**").hasAuthority("ROLE_SYSTEM_ADMIN");
+        http.authorizeHttpRequests().requestMatchers("/api/auditorium/**").hasAuthority("ROLE_SYSTEM_ADMIN");
         http.authorizeHttpRequests().requestMatchers("/api/reservation/**").hasAuthority("ROLE_USER");
         http.authorizeHttpRequests().requestMatchers("/api/ticket/**").permitAll();
         http.authorizeHttpRequests().anyRequest().authenticated();
