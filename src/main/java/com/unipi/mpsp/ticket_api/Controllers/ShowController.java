@@ -1,11 +1,8 @@
 package com.unipi.mpsp.ticket_api.Controllers;
 
-import com.unipi.mpsp.ticket_api.DataClasses.Performance;
-import com.unipi.mpsp.ticket_api.DataClasses.Show;
-import com.unipi.mpsp.ticket_api.Services.AppUserService;
-import com.unipi.mpsp.ticket_api.Services.PerformanceService;
-import com.unipi.mpsp.ticket_api.Services.ShowService;
-import com.unipi.mpsp.ticket_api.Services.UserService;
+import com.unipi.mpsp.ticket_api.DataClasses.*;
+import com.unipi.mpsp.ticket_api.Services.*;
+import com.unipi.mpsp.ticket_api.Utils.Utilities;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +32,7 @@ import java.security.Principal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -49,6 +47,8 @@ public class ShowController {
     private final ShowService showService;
     private final PerformanceService performanceService;
     private final AppUserService appUserService;
+    private final ReservationService reservationService;
+    private final AuditoriumService auditoriumService;
 
     @GetMapping("/future")
     public ResponseEntity<List<Map<String,Object>>> getFutureShows(){
@@ -67,8 +67,8 @@ public class ShowController {
     }
 
     @GetMapping("/")
-    public ResponseEntity<List<Show>> getShows(HttpServletRequest request){
-        log.info("All shows retrieved at {} by {}",LocalDateTime.now(), request.getRemoteAddr());
+    public ResponseEntity<List<Show>> getShows(){
+        log.info("All shows retrieved");
         return ResponseEntity.ok().body(showService.getAllShows());
     }
 
@@ -92,29 +92,54 @@ public class ShowController {
                 log.error("Performance {} has no shows", performance.getName());
                 return ResponseEntity.notFound().header("Error-Message", "No Shows Found For Performance").build();
             }
-            log.info("Show {} retrieved at {}", id ,LocalDateTime.now());
+            log.info("Shows for performance {} retrieved", id);
             return ResponseEntity.ok().body(shows);
         }
         log.error("Performance with id {} not found", id);
         return ResponseEntity.notFound().header("Error-Message","Performance Not Found").build();
+    }
+    @PostMapping("/available")
+    public ResponseEntity<List<Auditorium>> getAvailableAuditoriums(@RequestBody Show carrier, Principal principal){
+        LocalDateTime date = carrier.getDateTime();
+        date = date.plusHours(2);
+        Performance performance = appUserService.getUser(principal.getName()).getPerformance();
+        List<Auditorium> unavailable = new ArrayList<>();
+        List<Auditorium> auditoriums = auditoriumService.getAuditoriums();
+        for(Auditorium auditorium:auditoriums){
+            for(Show show:showService.getShowByAuditorium(auditorium)){
+                if ((date.isAfter(show.getDateTime()) && date.isBefore(show.getDateTime().plusMinutes(show.getPerformance().getDuration() + 60))) ||
+                        date.plusMinutes(performance.getDuration() + 60).isAfter(show.getDateTime()) && date.plusMinutes(performance.getDuration()).isBefore(show.getDateTime().plusMinutes(show.getPerformance().getDuration()))){
+                    unavailable.add(auditorium);
+                    break;
+                }
+            }
+        }
+        auditoriums.removeAll(unavailable);
+        return ResponseEntity.ok().body(auditoriums);
     }
 
     @PostMapping("/")
     @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<Show> saveShow(@RequestBody Show newShow, Principal principal){
         Performance performance = performanceService.getPerformance(newShow.getPerformance().getName());
+        newShow.setDateTime(newShow.getDateTime().plusHours(2));
         if(performance==null){
             return ResponseEntity.notFound().header("Error-Message","Referenced Performance Doesn't Exist").build();
         }
         if(performance.getUser() != appUserService.getUser(principal.getName())){
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).header("Error-Message","Admin Tried To Add Show Of Performance They Don't Control").build();
         }
+        if(newShow.getDateTime().isBefore(LocalDateTime.now().plusDays(1))){
+            return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED).header("Error-Message","New Show Must Be At Least 24 Hours In The Future").body(null);
+        }
         List<Show> shows = showService.getAllShows();
         for(Show show:shows) {
-            if((newShow.getDateTime().isAfter(show.getDateTime()) && newShow.getDateTime().isBefore(show.getDateTime().plusMinutes(show.getPerformance().getDuration() + 60)))||
-                newShow.getDateTime().plusMinutes(performance.getDuration() + 60).isAfter(show.getDateTime()) && newShow.getDateTime().plusMinutes(performance.getDuration()).isBefore(show.getDateTime().plusMinutes(show.getPerformance().getDuration()))){
-                log.error("User {} tried to add show during another show",performance.getUser());
-                return ResponseEntity.badRequest().header("Error-Message","Show Already Exists During The Given Time Slot").build();
+            if(show.getAuditorium().getName().equals(newShow.getAuditorium().getName())) {
+                if ((newShow.getDateTime().isAfter(show.getDateTime()) && newShow.getDateTime().isBefore(show.getDateTime().plusMinutes(show.getPerformance().getDuration() + 60))) ||
+                        newShow.getDateTime().plusMinutes(performance.getDuration() + 60).isAfter(show.getDateTime()) && newShow.getDateTime().plusMinutes(performance.getDuration()).isBefore(show.getDateTime().plusMinutes(show.getPerformance().getDuration()))) {
+                    log.error("User {} tried to add show during another show", performance.getUser().getEmail());
+                    return ResponseEntity.badRequest().header("Error-Message", "Show Already Exists During The Given Time Slot").build();
+                }
             }
         }
         newShow.setPerformance(performance);
@@ -126,9 +151,34 @@ public class ShowController {
     @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<Show> updateShow(@PathVariable Long id,@RequestBody Show updatedShowTime,Principal principal){
         Show updatedShow = showService.getShow(id);
+        updatedShowTime.setDateTime(updatedShowTime.getDateTime().plusHours(2));
         if(updatedShow!=null) {
             if(updatedShow.getPerformance().getUser() != appUserService.getUser(principal.getName())){
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).header("Error-Message","Admin Tried To Edit Show Of Performance They Don't Control").build();
+            }
+            if(updatedShowTime.getDateTime().isBefore(updatedShow.getDateTime())){
+                return ResponseEntity.badRequest().header("Error-Message","Updated Show Time Can't Be Before Original").body(null);
+            }
+            if(updatedShowTime.getAuditorium().getName().equals(updatedShow.getAuditorium().getName()) && updatedShowTime.getDateTime().equals(updatedShow.getDateTime())){
+                return ResponseEntity.ok().body(updatedShow);
+            }
+            for (Show show : showService.getAllShows()) {
+                if (show.getAuditorium().getName().equals(updatedShowTime.getAuditorium().getName())) {
+                    if ((updatedShowTime.getDateTime().isAfter(show.getDateTime()) && updatedShowTime.getDateTime().isBefore(show.getDateTime().plusMinutes(show.getPerformance().getDuration() + 60))) ||
+                            updatedShowTime.getDateTime().plusMinutes(updatedShow.getPerformance().getDuration() + 60).isAfter(show.getDateTime()) && updatedShowTime.getDateTime().plusMinutes(updatedShow.getPerformance().getDuration()).isBefore(show.getDateTime().plusMinutes(show.getPerformance().getDuration()))) {
+                        log.error("User {} tried to add show during another show", principal.getName());
+                        return ResponseEntity.badRequest().header("Error-Message", "Show Already Exists During The Given Time Slot").build();
+                    }
+                }
+            }
+            List<AppUser> notifiedUsers = new ArrayList<>();
+            for (Ticket ticket : updatedShow.getTickets()) {
+                if (ticket.getReservation() != null) {
+                    if (!notifiedUsers.contains(ticket.getReservation().getAppUser())) {
+                        //Notify User
+                        notifiedUsers.add(ticket.getReservation().getAppUser());
+                    }
+                }
             }
             updatedShow.setDateTime(updatedShowTime.getDateTime());
             return ResponseEntity.ok().body(showService.saveShow(updatedShow));
@@ -143,8 +193,26 @@ public class ShowController {
         Show show = showService.getShow(id);
         if(show!=null) {
             Performance performance = show.getPerformance();
-            if(performance.getUser() != appUserService.getUser(principal.getName())){
+            if(!performance.getUser().getEmail().equals(principal.getName())){
+                log.error("User {} tried to delete show of performance they are not admin of", principal.getName());
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).header("Error-Message","Admin Tried To Delete Show Of Performance They Don't Control").build();
+            }
+            List<Reservation> reservationsToDelete = new ArrayList<>();
+            for(Ticket ticket:show.getTickets()){
+                if(ticket.getReservation()!=null){
+                    if(!reservationsToDelete.contains(ticket.getReservation())){
+                        reservationsToDelete.add(ticket.getReservation());
+                    }
+                }
+            }
+            for(Reservation reservation: reservationsToDelete){
+                for(Ticket ticket: reservation.getTickets()){
+                    ticket.setReservation(null);
+                }
+                //Notify User
+                AppUser appUser= reservation.getAppUser();
+                appUser.getReservations().remove(reservation);
+                appUserService.saveUser(appUser);
             }
             performance.getShows().remove(show);
             performanceService.savePerformance(performance);

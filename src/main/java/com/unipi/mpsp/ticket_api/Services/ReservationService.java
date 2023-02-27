@@ -10,6 +10,7 @@ import java.util.List;
 public interface ReservationService {
     Reservation saveReservation(Reservation reservation);
     List<Reservation> getReservations(AppUser appUser);
+    List<Reservation> getAllReservations();
     void deleteReservation(Reservation reservation);
     Reservation getReservation(Long id);
 }

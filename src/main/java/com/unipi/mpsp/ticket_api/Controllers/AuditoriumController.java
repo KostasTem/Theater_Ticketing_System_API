@@ -5,11 +5,15 @@ import com.unipi.mpsp.ticket_api.Services.AppUserService;
 import com.unipi.mpsp.ticket_api.Services.AuditoriumService;
 import com.unipi.mpsp.ticket_api.Services.PerformanceService;
 import com.unipi.mpsp.ticket_api.Services.ShowService;
+import com.unipi.mpsp.ticket_api.Utils.Utilities;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.annotation.Secured;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -18,6 +22,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/auditorium")
 @RequiredArgsConstructor
+@Secured("ROLE_SYSTEM_ADMIN")
 public class AuditoriumController {
     private final ShowService showService;
     private final AuditoriumService auditoriumService;
@@ -28,6 +33,7 @@ public class AuditoriumController {
     public ResponseEntity<List<Auditorium>> getAuditoriums(){
         return ResponseEntity.ok().body(auditoriumService.getAuditoriums());
     }
+
 
     @GetMapping("/{id}")
     public ResponseEntity<Auditorium> getAuditorium(@PathVariable Long id){
@@ -65,7 +71,6 @@ public class AuditoriumController {
             return ResponseEntity.notFound().header("Error-Message","Auditorium Not Found").build();
         }
         handleAuditoriumDeletion(auditorium);
-        auditoriumService.deleteAuditorium(id);
         return ResponseEntity.ok().body("Deleted");
     }
 
@@ -84,6 +89,7 @@ public class AuditoriumController {
                 }
                 for(Reservation res:toCancel){
                     AppUser appUser = res.getAppUser();
+                    res.getTickets().forEach(ticket -> ticket.setReservation(null));
                     appUser.getReservations().remove(res);
                     appUserService.saveUser(appUser);
                 }
@@ -97,7 +103,7 @@ public class AuditoriumController {
     }
     private void handleAuditoriumEdit(Auditorium auditorium, Integer newRows, Integer newSeatsPerRow){
         List<Show> shows = showService.getAllShows();
-        List<String> newSeats = calculateNewSeats(newRows, newSeatsPerRow);
+        List<String> newSeats = Utilities.calculateNewSeats(newRows, newSeatsPerRow);
         List<Reservation> toCancel = new ArrayList<>();
         for(Show show:shows){
             List<Ticket> tickets = new ArrayList<>();
@@ -115,10 +121,12 @@ public class AuditoriumController {
                     }
                 }
                 for(Ticket ticket:tickets){
+                    ticket.setReservation(null);
                     show.getTickets().remove(ticket);
                 }
                 for(Reservation res:toCancel){
                     AppUser appUser = res.getAppUser();
+                    res.getTickets().forEach(ticket -> ticket.setReservation(null));
                     appUser.getReservations().remove(res);
                     appUserService.saveUser(appUser);
                 }
@@ -129,21 +137,5 @@ public class AuditoriumController {
         auditorium.setRows(newRows);
         auditorium.setSeatsPerRow(newSeatsPerRow);
         auditoriumService.saveAuditorium(auditorium);
-    }
-
-    private List<String> calculateNewSeats(Integer rows, Integer seatsPerRow){
-        List<String> seats = new ArrayList<>();
-        int counter = 0;
-        for (char alphabet = 'A'; alphabet <= 'Z'; alphabet++) {
-            for (int i = 1; i < seatsPerRow + 1; i++) {
-                String seat = alphabet + String.valueOf(i);
-                seats.add(seat);
-            }
-            counter += 1;
-            if (counter >= rows) {
-                break;
-            }
-        }
-        return seats;
     }
 }

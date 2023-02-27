@@ -21,12 +21,14 @@ public class Reservation {
     @JsonIncludeProperties(value = {"seat","id"})
     private List<Ticket> tickets;
     private LocalDateTime timestamp;
+    private Double price;
 
     public Reservation(Long id, AppUser appUser, List<Ticket> tickets, LocalDateTime timestamp) {
         this.id = id;
         this.appUser = appUser;
         this.tickets = tickets;
         this.timestamp = timestamp;
+        this.price = calculatePrice();
     }
 
     public Reservation() {
@@ -62,5 +64,20 @@ public class Reservation {
 
     public void setTimestamp(LocalDateTime timestamp) {
         this.timestamp = timestamp;
+    }
+
+    public Double getPrice() {
+        return price;
+    }
+
+    public void setPrice(Double price) {
+        this.price = price;
+    }
+
+    private Double calculatePrice(){
+        if(this.tickets.size()>0) {
+            return this.tickets.get(0).getShow().getPerformance().getTicketPrice() * this.tickets.size();
+        }
+        return 0D;
     }
 }

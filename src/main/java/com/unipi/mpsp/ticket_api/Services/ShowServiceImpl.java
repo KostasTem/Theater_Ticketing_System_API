@@ -1,5 +1,6 @@
 package com.unipi.mpsp.ticket_api.Services;
 
+import com.unipi.mpsp.ticket_api.DataClasses.Auditorium;
 import com.unipi.mpsp.ticket_api.DataClasses.Performance;
 import com.unipi.mpsp.ticket_api.DataClasses.Show;
 import com.unipi.mpsp.ticket_api.Repositories.ShowRepository;
@@ -33,6 +34,11 @@ public class ShowServiceImpl implements ShowService {
     @Override
     public Show getShow(Long id) {
         return showRepository.findById(id).orElse(null);
+    }
+
+    @Override
+    public List<Show> getShowByAuditorium(Auditorium auditorium) {
+        return showRepository.findByAuditorium(auditorium);
     }
 
     @Override

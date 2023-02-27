@@ -33,6 +33,9 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
+import java.util.Arrays;
+import java.util.Collections;
+
 import static java.lang.String.format;
 
 @EnableWebSecurity
@@ -56,7 +59,6 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.csrf().disable();
-        //http.cors().disable();
         http.exceptionHandling(
                 (exceptions) ->
                         exceptions
@@ -64,9 +66,10 @@ public class SecurityConfig {
                                 .accessDeniedHandler(new BearerTokenAccessDeniedHandler()));
         http.authorizeHttpRequests().requestMatchers("/api/auth/**").permitAll();
         http.authorizeHttpRequests().requestMatchers("/api/show/**").permitAll();
-        http.authorizeHttpRequests().requestMatchers("/api/user/**").hasAuthority("ROLE_SYSTEM_ADMIN");
-        http.authorizeHttpRequests().requestMatchers("/api/auditorium/**").hasAuthority("ROLE_SYSTEM_ADMIN");
-        http.authorizeHttpRequests().requestMatchers("/api/reservation/**").hasAuthority("ROLE_USER");
+        http.authorizeHttpRequests().requestMatchers("/api/user/**").permitAll();//hasAuthority("ROLE_SYSTEM_ADMIN");
+        http.authorizeHttpRequests().requestMatchers("/api/auditorium/**").permitAll();//hasAuthority("ROLE_SYSTEM_ADMIN");
+        http.authorizeHttpRequests().requestMatchers("/api/reservation/**").permitAll();//hasAuthority("ROLE_USER");
+        http.authorizeHttpRequests().requestMatchers("/api/performance/**").permitAll();
         http.authorizeHttpRequests().requestMatchers("/api/ticket/**").permitAll();
         http.authorizeHttpRequests().anyRequest().authenticated();
         http.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
@@ -98,7 +101,6 @@ public class SecurityConfig {
         return jwtAuthenticationConverter;
     }
 
-
     @Bean
     public PasswordEncoder passwordEncoder(){return new BCryptPasswordEncoder();}
 
@@ -110,9 +112,12 @@ public class SecurityConfig {
         var config = new CorsConfiguration();
         config.setAllowCredentials(true);
         //config.addAllowedOrigin("*");
-        config.addAllowedHeader("*");
-        config.addAllowedMethod("*");
-        config.addAllowedOriginPattern("*");
+        //config.addAllowedHeader("*");
+        //config.addAllowedMethod("*");
+        //config.addAllowedOriginPattern("*");
+        config.setAllowedOriginPatterns(Collections.singletonList("https://localhost:4200"));
+        config.setAllowedHeaders(Collections.singletonList("*"));
+        config.setAllowedMethods(Collections.singletonList("*"));
         source.registerCorsConfiguration("/**", config);
         return new CorsFilter(source);
     }

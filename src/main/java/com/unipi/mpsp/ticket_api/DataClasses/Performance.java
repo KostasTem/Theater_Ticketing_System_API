@@ -18,10 +18,11 @@ public class Performance {
     private String image;
     private Double ticketPrice;
     @OneToMany(fetch = FetchType.EAGER,mappedBy = "performance",cascade = CascadeType.ALL,orphanRemoval = true)
-    @JsonIncludeProperties(value = {"id","dateTime"})
+    @JsonIncludeProperties(value = {"id","dateTime","ticketPrice"})
     private List<Show> shows;
     @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "user_id", referencedColumnName = "id")
+    @JsonIgnore
     private AppUser appUser;
 
     public Performance(Long id, String name, Integer duration, Double ticketPrice) {

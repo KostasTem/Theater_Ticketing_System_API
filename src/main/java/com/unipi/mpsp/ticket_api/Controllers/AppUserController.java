@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.annotation.Secured;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.ByteArrayOutputStream;
@@ -24,6 +25,7 @@ import java.util.zip.Inflater;
 @RestController
 @RequestMapping("/api/user")
 @RequiredArgsConstructor
+@Secured("ROLE_SYSTEM_ADMIN")
 public class AppUserController {
 
     private final AppUserService appUserService;
@@ -33,6 +35,7 @@ public class AppUserController {
     @GetMapping("/")
     public ResponseEntity<List<AppUser>> getUsers(){
         List<AppUser> appUsers = appUserService.getUsers().stream().filter(appUser -> !appUser.getRoles().contains("SYSTEM_ADMIN")).toList();
+        appUsers.forEach(appUser ->  {if(appUser.getPerformance()!=null){appUser.getPerformance().setUser(null);}});
         return ResponseEntity.ok().body(appUsers);
     }
 
@@ -81,6 +84,7 @@ public class AppUserController {
             appUser.setPerformance(null);
         }
         appUser.setRoles(update);
-        return ResponseEntity.ok().body(appUserService.saveUser(appUser));
+        appUser = appUserService.saveUser(appUser);
+        return ResponseEntity.ok().body(appUser);
     }
 }

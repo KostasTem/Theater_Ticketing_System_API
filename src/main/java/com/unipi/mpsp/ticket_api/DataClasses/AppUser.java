@@ -1,20 +1,12 @@
 package com.unipi.mpsp.ticket_api.DataClasses;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIncludeProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.unipi.mpsp.ticket_api.Utils.ImageUtils;
 import com.unipi.mpsp.ticket_api.Utils.StringListConverter;
 import jakarta.persistence.*;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.web.multipart.MultipartFile;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 @Entity
@@ -41,6 +33,7 @@ public class AppUser {
     private List<Reservation> reservations;
     @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "performance_id", referencedColumnName = "id")
+    @JsonIncludeProperties(value = {"id","name","duration","image"})
     private Performance performance;
 
     public AppUser(Long id, String email, String password, String firstName, String lastName, Integer age, String provider,List<String> roles, Performance performance) {

@@ -15,6 +15,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.annotation.Secured;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -30,11 +32,13 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/reservation")
 @RequiredArgsConstructor
+@Secured("ROLE_USER")
 public class ReservationController {
     private final static Logger log = LoggerFactory.getLogger(ReservationController.class);
     private final ReservationService reservationService;
     private final AppUserService appUserService;
     private final ShowService showService;
+    private final TicketService ticketService;
     @GetMapping("/")
     public ResponseEntity<List<Map<String,Object>>> getReservations(Principal principal){
         List<Map<String, Object>> res = new ArrayList<>();
@@ -57,28 +61,28 @@ public class ReservationController {
     public ResponseEntity<Reservation> saveReservation(@RequestBody Map<String,Object> req, Principal principal){
         List<String> ticketSeats;
         Long showID;
-        String[] date;
-        Month month;
+        //String[] date;
+        //Month month;
         Show show = null;
         try {
             ticketSeats = (List<String>) req.get("tickets");
             showID = Long.valueOf((Integer) req.get("showID"));
-            date = ((String) req.get("timestamp")).split(":");
-            month = Month.of(Integer.parseInt(date[1]));
+            //date = ((String) req.get("timestamp")).split(":");
+            //month = Month.of(Integer.parseInt(date[1]));
             //localDateTime = LocalDateTime.of(Integer.parseInt(date[0]), month, Integer.parseInt(date[2]), Integer.parseInt(date[3]), Integer.parseInt(date[4]), Integer.parseInt(date[5]));
             show = showService.getShow(showID);
         }catch (Exception e){
             log.error("Invalid request data format during reservation attempt at {} by {} with exception {}. Data {}", LocalDateTime.now(),principal.getName(),e.getMessage(),Arrays.toString(req.entrySet().toArray()));
-            return ResponseEntity.badRequest().header("Error-Message","Invalid Data In Request.").body(null);
+            return ResponseEntity.badRequest().header("Access-Control-Allow-Origin","*").header("Error-Message","Invalid Data In Request.").body(null);
         }
         if(show == null){
             log.error("Invalid show id {} during reservation attempt at {} by {}", showID, LocalDateTime.now(),principal.getName());
             return ResponseEntity.badRequest().header("Error-Message","Invalid Show ID").body(null);
         }
         List<Ticket> tickets = show.getTickets().stream().filter(ticket -> ticketSeats.contains(ticket.getSeat()) && ticket.getReservation()==null).collect(Collectors.toList());
-        if(tickets.size() == 0){
-           log.error("No tickets found for reservation by user {}",principal.getName());
-           return ResponseEntity.notFound().header("Error-Message","Requested Tickets Not Available.").build();
+        if(tickets.size() != ticketSeats.size()){
+           log.error("Some of the tickets in reservation by user {} weren't available",principal.getName());
+           return ResponseEntity.status(HttpStatus.CONFLICT).header("Error-Message","Requested Tickets Not Available.").build();
         }
         AppUser appUser = appUserService.getUser(principal.getName());
         if(appUser==null){
@@ -86,11 +90,13 @@ public class ReservationController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).header("Error-Message","User not found").body(null);
         }
         Reservation reservation = new Reservation(null,appUser,tickets,LocalDateTime.now());
-        for(Ticket ticket:tickets){
-            ticket.setReservation(reservation);
-        }
         //appUser.getReservations().add(reservation);
-        if(reservationService.saveReservation(reservation) == reservation) {
+        reservation = reservationService.saveReservation(reservation);
+        if(reservation != null ) {
+            for(Ticket ticket:tickets){
+                ticket.setReservation(reservation);
+                ticketService.saveTicket(ticket);
+            }
             log.info("User {} made reservation {} at {}",appUser.getEmail(),reservation.getId(),LocalDateTime.now());
             return ResponseEntity.ok().body(reservation);
         }
@@ -105,6 +111,7 @@ public class ReservationController {
         if(reservation!=null && reservation.getAppUser().equals(appUser)){
             for(Ticket ticket: appUser.getReservations().get(appUser.getReservations().indexOf(reservation)).getTickets()){
                 ticket.setReservation(null);
+                //ticketService.saveTicket(ticket);
             }
             appUser.getReservations().remove(reservation);
             if(appUserService.saveUser(appUser) == appUser) {

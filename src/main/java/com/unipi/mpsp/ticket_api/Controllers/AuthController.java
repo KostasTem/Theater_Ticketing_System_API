@@ -11,11 +11,9 @@ import com.unipi.mpsp.ticket_api.Services.UserService;
 import jakarta.xml.bind.ValidationException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -24,7 +22,6 @@ import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -56,7 +53,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<String> login(@RequestBody Map<String, String> map) {
+    public ResponseEntity<Map<String,Object>> login(@RequestBody Map<String, String> map) {
         String username = map.get("username");
         String password = map.get("password");
         try {
@@ -67,10 +64,12 @@ public class AuthController {
                     authenticationManager.authenticate(
                             new UsernamePasswordAuthenticationToken(username, password));
             String token = generateToken(authentication);
+            Map<String,Object> res = new HashMap<>();
+            res.put("token",token);
+            res.put("user",appUserService.getUser(username));
             return ResponseEntity.ok()
-                    .header(HttpHeaders.AUTHORIZATION, token)
-                    .body(token);
-        } catch (BadCredentialsException ex) {
+                    .body(res);
+        } catch (Exception ex) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
     }
@@ -112,7 +111,8 @@ public class AuthController {
     public AppUser register(@RequestBody AppUser appUser) throws ValidationException, IOException {
         appUser.setProvider("LOCAL");
         appUser.setReservations(new ArrayList<>());
-        //appUser.setRoles(List.of("USER"));
+        appUser.setRoles(List.of("USER"));
+        appUser.setPerformance(null);
         return userService.create(appUser);
     }
 
