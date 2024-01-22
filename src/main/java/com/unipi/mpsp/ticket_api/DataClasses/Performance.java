@@ -15,6 +15,7 @@ public class Performance {
     @Column(unique = true,nullable = false)
     private String name;
     private Integer duration;
+    @Column(length = 10000024)
     private String image;
     private Double ticketPrice;
     @OneToMany(fetch = FetchType.EAGER,mappedBy = "performance",cascade = CascadeType.ALL,orphanRemoval = true)

@@ -8,6 +8,7 @@ import com.unipi.mpsp.ticket_api.Services.AppUserService;
 import com.unipi.mpsp.ticket_api.Services.ReservationService;
 import com.unipi.mpsp.ticket_api.Services.ShowService;
 import com.unipi.mpsp.ticket_api.Services.TicketService;
+import com.unipi.mpsp.ticket_api.Utils.EmailSender;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
 import org.slf4j.Logger;
@@ -15,6 +16,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.access.annotation.Secured;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -39,6 +41,7 @@ public class ReservationController {
     private final AppUserService appUserService;
     private final ShowService showService;
     private final TicketService ticketService;
+    private final JavaMailSender javaMailSender;
     @GetMapping("/")
     public ResponseEntity<List<Map<String,Object>>> getReservations(Principal principal){
         List<Map<String, Object>> res = new ArrayList<>();
@@ -52,6 +55,7 @@ public class ReservationController {
             Map<String, Object> temp = new HashMap<>();
             temp.put("show", reservation.getTickets().get(0).getShow());
             temp.put("reservation",reservation);
+            temp.put("tickets",reservation.getTickets().stream().map(Ticket::getSeat).collect(Collectors.toList()));
             res.add(temp);
         }
         return ResponseEntity.ok().body(res);
@@ -61,16 +65,16 @@ public class ReservationController {
     public ResponseEntity<Reservation> saveReservation(@RequestBody Map<String,Object> req, Principal principal){
         List<String> ticketSeats;
         Long showID;
-        //String[] date;
-        //Month month;
         Show show = null;
+        List<String> emails = null;
         try {
             ticketSeats = (List<String>) req.get("tickets");
             showID = Long.valueOf((Integer) req.get("showID"));
-            //date = ((String) req.get("timestamp")).split(":");
-            //month = Month.of(Integer.parseInt(date[1]));
-            //localDateTime = LocalDateTime.of(Integer.parseInt(date[0]), month, Integer.parseInt(date[2]), Integer.parseInt(date[3]), Integer.parseInt(date[4]), Integer.parseInt(date[5]));
             show = showService.getShow(showID);
+            if(ticketSeats.size()>1){
+                emails = (List<String>) req.get("emails");
+                emails = emails.stream().filter(email -> !Objects.equals(email, "")).collect(Collectors.toList());
+            }
         }catch (Exception e){
             log.error("Invalid request data format during reservation attempt at {} by {} with exception {}. Data {}", LocalDateTime.now(),principal.getName(),e.getMessage(),Arrays.toString(req.entrySet().toArray()));
             return ResponseEntity.badRequest().header("Access-Control-Allow-Origin","*").header("Error-Message","Invalid Data In Request.").body(null);
@@ -97,7 +101,13 @@ public class ReservationController {
                 ticket.setReservation(reservation);
                 ticketService.saveTicket(ticket);
             }
-            log.info("User {} made reservation {} at {}",appUser.getEmail(),reservation.getId(),LocalDateTime.now());
+            log.info("User {} made reservation {}",appUser.getEmail(),reservation.getId());
+            if(emails!=null && emails.size()>0){
+                for(String email:emails) {
+                    Thread emailThread = new Thread(new EmailSender(javaMailSender, email, null, show));
+                    emailThread.start();
+                }
+            }
             return ResponseEntity.ok().body(reservation);
         }
         log.error("Unable to save reservation for user {} at {}",appUser.getEmail(),LocalDateTime.now());
@@ -114,7 +124,7 @@ public class ReservationController {
                 //ticketService.saveTicket(ticket);
             }
             appUser.getReservations().remove(reservation);
-            if(appUserService.saveUser(appUser) == appUser) {
+            if(appUserService.saveUser(appUser,false) == appUser) {
                 log.info("User {} deleted reservation {} at {}",appUser.getEmail(),reservation.getId(),LocalDateTime.now());
                 return ResponseEntity.ok().body("Success");
             }
@@ -127,7 +137,7 @@ public class ReservationController {
             log.error("User {} tried to delete non-existent reservation with id {} at {}",appUser.getEmail(),id,LocalDateTime.now());
             return ResponseEntity.badRequest().header("Error-Message","Reservation Doesn't Exist").body("Reservation Doesn't Exist");
         }
-        log.error("User {} tried to delete reservation that isn't theirs at {}",appUser.getEmail(),LocalDateTime.now());
+        log.error("User {} tried to delete reservation that isn't theirs",appUser.getEmail());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).header("Error-Message","Unauthorized Request").body("Invalid User");
     }
 }

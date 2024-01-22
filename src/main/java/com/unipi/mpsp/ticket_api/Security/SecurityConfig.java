@@ -118,6 +118,7 @@ public class SecurityConfig {
         config.setAllowedOriginPatterns(Collections.singletonList("https://localhost:4200"));
         config.setAllowedHeaders(Collections.singletonList("*"));
         config.setAllowedMethods(Collections.singletonList("*"));
+        config.addExposedHeader("Error-Message");
         source.registerCorsConfiguration("/**", config);
         return new CorsFilter(source);
     }

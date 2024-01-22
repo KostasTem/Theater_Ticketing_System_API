@@ -18,7 +18,7 @@ public class Reservation {
     @JsonIgnore
     private AppUser appUser;
     @OneToMany(fetch = FetchType.EAGER,mappedBy = "reservation",cascade = {CascadeType.MERGE})
-    @JsonIncludeProperties(value = {"seat","id"})
+    @JsonIncludeProperties(value = {"seat","id","checkedIn"})
     private List<Ticket> tickets;
     private LocalDateTime timestamp;
     private Double price;

@@ -70,14 +70,14 @@ public class AuthController {
             return ResponseEntity.ok()
                     .body(res);
         } catch (Exception ex) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).header("Error-Message","Invalid Credentials").build();
         }
     }
 
     @PostMapping("/google")
-    public ResponseEntity<Map<String,String>> googleLogin(@RequestBody Map<String,String> req){
+    public ResponseEntity<Map<String,Object>> googleLogin(@RequestBody Map<String,String> req){
         String googleToken = req.get("googleToken");
-        Map<String, String> res = new HashMap<>();
+        Map<String, Object> res = new HashMap<>();
         try {
             GoogleIdToken idToken = GoogleIdToken.parse(verifier.getJsonFactory(), googleToken);
             boolean tokenIsValid = (idToken != null) && verifier.verify(idToken);
@@ -97,6 +97,7 @@ public class AuthController {
 
                 String token = generateToken(authentication);
                 res.put("token", token);
+                res.put("user",appUser);
                 return ResponseEntity.ok().body(res);
 
             }

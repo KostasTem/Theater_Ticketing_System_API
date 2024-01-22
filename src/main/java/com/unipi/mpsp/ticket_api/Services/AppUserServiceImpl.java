@@ -33,8 +33,10 @@ public class AppUserServiceImpl implements AppUserService{
     }
 
     @Override
-    public AppUser saveUser(AppUser appUser) {
-        appUser.setPassword(passwordEncoder.encode(appUser.getPassword()));
+    public AppUser saveUser(AppUser appUser,boolean encode) {
+        if(encode) {
+            appUser.setPassword(passwordEncoder.encode(appUser.getPassword()));
+        }
         return appUserRepository.save(appUser);
     }
 

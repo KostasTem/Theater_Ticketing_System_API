@@ -35,7 +35,7 @@ public class UserService implements UserDetailsService {
         if(!appUser.getRoles().contains("USER") && !appUser.getRoles().contains("ADMIN")) {
             appUser.setRoles(List.of("USER"));
         }
-        return appUserService.saveUser(appUser);
+        return appUserService.saveUser(appUser,true);
     }
 
     /*@Transactional

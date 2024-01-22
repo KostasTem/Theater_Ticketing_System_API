@@ -17,7 +17,7 @@ public class Show {
     private Long id;
     @ManyToOne
     @JoinColumn(name = "performance_id", referencedColumnName = "id")
-    @JsonIncludeProperties(value = {"id","name"})
+    @JsonIncludeProperties(value = {"id","name","image","duration","ticketPrice"})
     private Performance performance;
     private LocalDateTime dateTime;
     @OneToMany(fetch = FetchType.EAGER,mappedBy = "show",cascade = CascadeType.ALL, orphanRemoval = true)

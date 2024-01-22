@@ -1,10 +1,12 @@
-# ticket_api
+# Theater Ticketing System API
 
 API For Theater Ticket Reservation App
 
+The API is implemented using Spring Boot. It is supposed to be used with the Theater Ticketing System Angular project as it's backend.
+
 ## Required User Input
 
-Add Database Credentials And Google OAuth2 Client ID To application.properties
+Add Database Credentials, a Google OAuth2 Client ID and the credentials for an email address which the api will use to send user emails to application.properties
 
 ## Generate Public And Private Keys
 

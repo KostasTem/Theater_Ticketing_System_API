@@ -5,10 +5,12 @@ import com.unipi.mpsp.ticket_api.Services.AppUserService;
 import com.unipi.mpsp.ticket_api.Services.AuditoriumService;
 import com.unipi.mpsp.ticket_api.Services.PerformanceService;
 import com.unipi.mpsp.ticket_api.Services.ShowService;
+import com.unipi.mpsp.ticket_api.Utils.EmailSender;
 import com.unipi.mpsp.ticket_api.Utils.Utilities;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.access.annotation.Secured;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,6 +30,7 @@ public class AuditoriumController {
     private final AuditoriumService auditoriumService;
     private final PerformanceService performanceService;
     private final AppUserService appUserService;
+    private final JavaMailSender javaMailSender;
 
     @GetMapping("/")
     public ResponseEntity<List<Auditorium>> getAuditoriums(){
@@ -84,14 +87,15 @@ public class AuditoriumController {
                         if(!toCancel.contains(ticket.getReservation())){
                             toCancel.add(ticket.getReservation());
                         }
-                        //NOTIFY USER BY EMAIL OF SHOW CANCELATION
                     }
                 }
                 for(Reservation res:toCancel){
                     AppUser appUser = res.getAppUser();
                     res.getTickets().forEach(ticket -> ticket.setReservation(null));
                     appUser.getReservations().remove(res);
-                    appUserService.saveUser(appUser);
+                    Thread emailThread = new Thread(new EmailSender(javaMailSender, appUser.getEmail(), false, show));
+                    emailThread.start();
+                    appUserService.saveUser(appUser,false);
                 }
                 toCancel.clear();
                 Performance performance = show.getPerformance();
@@ -115,7 +119,6 @@ public class AuditoriumController {
                                 toCancel.add(ticket.getReservation());
                             }
                             ticket.setReservation(null);
-                            //NOTIFY USER BY EMAIL OF SHOW CANCELATION
                         }
                         tickets.add(ticket);
                     }
@@ -128,7 +131,9 @@ public class AuditoriumController {
                     AppUser appUser = res.getAppUser();
                     res.getTickets().forEach(ticket -> ticket.setReservation(null));
                     appUser.getReservations().remove(res);
-                    appUserService.saveUser(appUser);
+                    Thread emailThread = new Thread(new EmailSender(javaMailSender, appUser.getEmail(), true, show));
+                    emailThread.start();
+                    appUserService.saveUser(appUser,false);
                 }
                 toCancel.clear();
                 showService.saveShow(show);

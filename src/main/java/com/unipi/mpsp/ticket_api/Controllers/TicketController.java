@@ -17,17 +17,18 @@ import java.security.Principal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/ticket")
 @RequiredArgsConstructor
-@Secured("ROLE_USER")
 public class TicketController {
     private final TicketService ticketService;
     private final ShowService showService;
     private final ReservationService reservationService;
 
     @GetMapping("/{showID}")
+    @Secured("ROLE_USER")
     public ResponseEntity<Map<String,Object>> getTicketsForShow(@PathVariable Long showID){
         Show show = showService.getShow(showID);
         if(show==null){
@@ -41,6 +42,7 @@ public class TicketController {
     }
 
     @GetMapping("/checkIn/{reservationID}")
+    @Secured("ROLE_USER")
     public ResponseEntity<Reservation> checkIn(@PathVariable Long reservationID, Principal principal){
         Reservation reservation = reservationService.getReservation(reservationID);
         if(reservation!=null && reservation.getTickets().size()>0 && !reservation.getTickets().get(0).getCheckedIn()){
@@ -51,5 +53,19 @@ public class TicketController {
             return ResponseEntity.ok().body(reservationService.saveReservation(reservation));
         }
         return ResponseEntity.notFound().header("Error-Message","Reservation Not Found").build();
+    }
+
+    @GetMapping("/info/{showID}")
+    public ResponseEntity<Map<String,Integer>> getShowTicketInfo(@PathVariable Long showID){
+        Map<String,Integer> res = new HashMap<>();
+        Show show = showService.getShow(showID);
+        if(show==null){
+            return ResponseEntity.notFound().header("Error-Message","Show Not Found").build();
+        }
+        List<Ticket> tickets = ticketService.getTicketsByShow(show);
+        res.put("ticketsSum",tickets.size());
+        res.put("ticketsReserved",tickets.stream().filter(ticket -> ticket.getReservation()!=null).collect(Collectors.toList()).size());
+        res.put("ticketsCheckedIn",tickets.stream().filter(ticket -> ticket.getReservation()!=null && ticket.getCheckedIn()).collect(Collectors.toList()).size());
+        return ResponseEntity.ok().body(res);
     }
 }

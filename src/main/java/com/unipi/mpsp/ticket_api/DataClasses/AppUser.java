@@ -136,7 +136,7 @@ public class AppUser {
         return image;
     }
 
-    public void setImage(String image) throws IOException {
+    public void setImage(String image) {
         this.image = image;
     }
 }
